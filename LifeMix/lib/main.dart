@@ -1,24 +1,49 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'services/auth_service.dart';
-import 'screens/home_screen.dart';
+import 'screens/habits.dart';
+import 'services/local_storage.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final isDark = await LocalStorage.getTheme();
+  runApp(MyApp(initialBrightness: isDark ? Brightness.dark : Brightness.light));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MyApp extends StatefulWidget {
+  final Brightness initialBrightness;
+  const MyApp({super.key, required this.initialBrightness});
+
+  static _MyAppState? of(BuildContext context) =>
+      context.findAncestorStateOfType<_MyAppState>();
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late Brightness _brightness;
+
+  @override
+  void initState() {
+    super.initState();
+    _brightness = widget.initialBrightness;
+  }
+
+  void setTheme(Brightness brightness) {
+    setState(() {
+      _brightness = brightness;
+    });
+    LocalStorage.saveTheme(brightness == Brightness.dark);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<AuthService>(
-      create: (_) => AuthService(),
-      child: MaterialApp(
-        title: 'LifeMix',
-        theme: ThemeData(primarySwatch: Colors.blue),
-        home: const HomeScreen(),
+    return MaterialApp(
+      title: 'LifeMix App',
+      theme: ThemeData(
+        brightness: _brightness,
+        primarySwatch: Colors.blue,
       ),
+      home: HabitsScreen(),
     );
   }
 }
