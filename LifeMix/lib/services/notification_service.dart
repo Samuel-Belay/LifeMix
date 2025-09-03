@@ -14,7 +14,7 @@ class NotificationService {
   }
 
   Future<void> scheduleDaily(
-      int id, String title, String body, Time dailyTime) async {
+      int id, String title, String body, TimeOfDay dailyTime) async {
     await _flutterLocal.zonedSchedule(
       id,
       title,
