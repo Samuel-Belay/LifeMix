@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:table_calendar/table_calendar.dart';
 import '../services/local_storage.dart';
+import '../services/notification_service.dart';
 
 class HabitsScreen extends StatefulWidget {
   const HabitsScreen({super.key});
@@ -10,163 +10,107 @@ class HabitsScreen extends StatefulWidget {
 }
 
 class _HabitsScreenState extends State<HabitsScreen> {
-  List<Map<String, dynamic>> _habits = [];
-  DateTime _focusedDay = DateTime.now();
-  DateTime _selectedDay = DateTime.now();
+  final LocalStorage _storage = LocalStorage();
+  final NotificationService _notifications = NotificationService();
+
+  List<String> _habits = [];
 
   @override
   void initState() {
     super.initState();
     _loadHabits();
+    _notifications.init(); // Initialize notification service
   }
 
   Future<void> _loadHabits() async {
-    final habits = await LocalStorage.getHabits();
+    final stored = await _storage.getHabits();
     setState(() {
-      _habits = habits ?? [];
+      _habits = List<String>.from(stored ?? []);
     });
+    _scheduleAllHabitNotifications();
   }
 
-  Future<void> _saveHabits() async {
-    await LocalStorage.saveHabits(_habits);
+  Future<void> _addHabit(String habit) async {
+    _habits.add(habit);
+    await _storage.saveHabits(_habits);
+    _scheduleNotificationForHabit(habit);
+    setState(() {});
   }
 
-  void _toggleHabitCompletion(int index, DateTime day) {
-    final dateStr = day.toIso8601String().split("T").first;
-
-    setState(() {
-      final habit = _habits[index];
-      List<String> completions =
-          List<String>.from(habit['completions'] ?? <String>[]);
-
-      if (completions.contains(dateStr)) {
-        completions.remove(dateStr);
-      } else {
-        completions.add(dateStr);
-      }
-
-      habit['completions'] = completions;
-      habit['streak'] = _calculateStreak(completions);
-    });
-
-    _saveHabits();
+  Future<void> _removeHabit(String habit, int index) async {
+    _habits.removeAt(index);
+    await _storage.saveHabits(_habits);
+    await _notifications.cancelNotification(index); // Cancel by habit index
+    setState(() {});
   }
 
-  int _calculateStreak(List<String> completions) {
-    completions.sort((a, b) => b.compareTo(a)); // sort desc
-    int streak = 0;
-    DateTime today = DateTime.now();
-
-    for (String dateStr in completions) {
-      DateTime d = DateTime.parse(dateStr);
-      if (d == today.subtract(Duration(days: streak))) {
-        streak++;
-      } else {
-        break;
-      }
+  void _scheduleAllHabitNotifications() {
+    for (int i = 0; i < _habits.length; i++) {
+      _scheduleNotificationForHabit(_habits[i], id: i);
     }
-    return streak;
   }
 
-  void _addHabit() {
-    TextEditingController controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Add Habit"),
-        content: TextField(controller: controller),
-        actions: [
-          TextButton(
-              onPressed: () {
-                if (controller.text.isNotEmpty) {
-                  setState(() {
-                    _habits.add({
-                      'title': controller.text,
-                      'completions': <String>[],
-                      'streak': 0,
-                    });
-                  });
-                  _saveHabits();
-                }
-                Navigator.pop(context);
-              },
-              child: const Text("Add"))
-        ],
-      ),
+  void _scheduleNotificationForHabit(String habit, {int? id}) {
+    final notificationId = id ?? _habits.indexOf(habit);
+    _notifications.scheduleDaily(
+      notificationId,
+      'Habit Reminder',
+      'Don\'t forget to complete: $habit',
+      const Time(9, 0, 0), // Example: 9 AM daily reminder
     );
-  }
-
-  void _toggleTheme() {
-    final appState = MyApp.of(context);
-    if (appState != null) {
-      final isDark = Theme.of(context).brightness == Brightness.dark;
-      appState.setTheme(isDark ? Brightness.light : Brightness.dark);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Habits"),
-        actions: [
-          IconButton(
-              icon: const Icon(Icons.color_lens), onPressed: _toggleTheme),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              itemCount: _habits.length,
-              itemBuilder: (context, index) {
-                final habit = _habits[index];
-                return ListTile(
-                  title: Text(habit['title']),
-                  subtitle: Text("🔥 Streak: ${habit['streak']} days"),
-                  trailing: Checkbox(
-                    value: (habit['completions'] ?? [])
-                        .contains(_selectedDay.toIso8601String().split("T").first),
-                    onChanged: (_) => _toggleHabitCompletion(index, _selectedDay),
-                  ),
-                );
-              },
+      appBar: AppBar(title: const Text('My Habits')),
+      body: ListView.builder(
+        itemCount: _habits.length,
+        itemBuilder: (context, index) {
+          final habit = _habits[index];
+          return ListTile(
+            title: Text(habit),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () => _removeHabit(habit, index),
             ),
-          ),
-          const Divider(),
-          TableCalendar(
-            focusedDay: _focusedDay,
-            firstDay: DateTime.utc(2020, 1, 1),
-            lastDay: DateTime.utc(2100, 12, 31),
-            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-            onDaySelected: (selected, focused) {
-              setState(() {
-                _selectedDay = selected;
-                _focusedDay = focused;
-              });
-            },
-            calendarBuilders: CalendarBuilders(
-              defaultBuilder: (context, day, focusedDay) {
-                String dateStr = day.toIso8601String().split("T").first;
-                bool completed = _habits.any((habit) =>
-                    (habit['completions'] ?? []).contains(dateStr));
-
-                if (completed) {
-                  return Center(
-                    child: Text(
-                      "${day.day}🔥",
-                      style: const TextStyle(color: Colors.green),
-                    ),
-                  );
-                }
-                return null;
-              },
-            ),
-          ),
-        ],
+          );
+        },
       ),
-      floatingActionButton:
-          FloatingActionButton(onPressed: _addHabit, child: const Icon(Icons.add)),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final newHabit = await _showAddHabitDialog();
+          if (newHabit != null && newHabit.isNotEmpty) {
+            _addHabit(newHabit);
+          }
+        },
+        child: const Icon(Icons.add),
+      ),
     );
+  }
+
+  Future<String?> _showAddHabitDialog() async {
+    String? habitName;
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Habit'),
+        content: TextField(
+          onChanged: (value) => habitName = value,
+          decoration: const InputDecoration(hintText: 'Enter habit name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    return habitName;
   }
 }
