@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:provider/provider.dart';
 import '../services/local_storage.dart';
 import '../services/notification_service.dart';
+import '../services/auth_service.dart';
 
 class Habit {
   String name;
@@ -13,7 +15,7 @@ class Habit {
   void markComplete() {
     final today = DateTime.now();
     if (completionDates.isEmpty ||
-        !isSameDay(completionDates.last, today.subtract(Duration(days: 1)))) {
+        !isSameDay(completionDates.last, today.subtract(const Duration(days: 1)))) {
       streak = 1;
     } else {
       streak += 1;
@@ -51,12 +53,14 @@ class HabitsScreen extends StatefulWidget {
 class _HabitsScreenState extends State<HabitsScreen> {
   List<Habit> _habits = [];
   final NotificationService _notificationService = NotificationService();
+  bool _isDarkMode = false;
 
   @override
   void initState() {
     super.initState();
     loadHabits();
     _notificationService.init();
+    LocalStorage.getTheme().then((value) => setState(() => _isDarkMode = value));
   }
 
   Future<void> loadHabits() async {
@@ -79,10 +83,61 @@ class _HabitsScreenState extends State<HabitsScreen> {
         habit.hashCode, 'Habit Reminder', 'Time for ${habit.name}', const Time(8, 0));
   }
 
+  Future<void> addHabit() async {
+    final controller = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Habit'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'Habit name'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () {
+                if (controller.text.trim().isNotEmpty) {
+                  setState(() {
+                    _habits.add(Habit(name: controller.text.trim()));
+                  });
+                  saveHabits();
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Add')),
+        ],
+      ),
+    );
+  }
+
+  void toggleTheme() {
+    setState(() {
+      _isDarkMode = !_isDarkMode;
+    });
+    LocalStorage.saveTheme(_isDarkMode);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Habits')),
+      appBar: AppBar(
+        title: const Text('Habits'),
+        actions: [
+          IconButton(
+            icon: Icon(_isDarkMode ? Icons.light_mode : Icons.dark_mode),
+            onPressed: toggleTheme,
+          ),
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: addHabit,
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
