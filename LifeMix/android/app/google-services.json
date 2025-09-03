@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1075861161700",
+    "project_id": "lifemix-2bcef",
+    "storage_bucket": "lifemix-2bcef.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1075861161700:android:760b998c108e4855464ef1",
+        "android_client_info": {
+          "package_name": "com.dev.lifemix"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBu9jOVR8oOD0Kwuzar3xjmkl5l6v_Xh4I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
