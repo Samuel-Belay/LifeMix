@@ -39,6 +39,13 @@ class PremiumService extends ChangeNotifier {
   }
 
   Future<void> purchase(ProductDetails product) async {
+    if (forcePremium) {
+      _isPremium = true;
+      notifyListeners();
+      debugPrint('Premium granted via forcePremium toggle.');
+      return;
+    }
+
     final purchaseParam = PurchaseParam(productDetails: product);
     await _iap.buyNonConsumable(purchaseParam: purchaseParam);
   }
