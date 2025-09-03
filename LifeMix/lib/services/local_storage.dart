@@ -15,6 +15,16 @@ class LocalStorage {
     return decoded.cast<Map<String, dynamic>>();
   }
 
+Future<void> updateStreak(String habit, bool completedToday) async {
+  final streaks = await LocalStorage.getStreaks() ?? <String, int>{};
+  if (completedToday) {
+    streaks[habit] = (streaks[habit] ?? 0) + 1;
+  } else {
+    streaks[habit] = 0;
+  }
+  await LocalStorage.saveStreaks(streaks);
+}
+  
   static void saveHabits(List<Map<String, dynamic>> habits) {
     _prefs?.setString('habits', jsonEncode(habits));
   }
@@ -23,3 +33,4 @@ class LocalStorage {
 
   static void setBool(String key, bool value) => _prefs?.setBool(key, value);
 }
+
