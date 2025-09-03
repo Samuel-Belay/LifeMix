@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:table_calendar/table_calendar.dart';
+import 'package:provider/provider.dart';
 import '../services/local_storage.dart';
+import '../services/premium_service.dart';
 import '../services/notification_service.dart';
 
 class HabitsScreen extends StatefulWidget {
@@ -11,38 +12,45 @@ class HabitsScreen extends StatefulWidget {
 }
 
 class _HabitsScreenState extends State<HabitsScreen> {
-  List<Map<String, dynamic>> habits = [];
-  DateTime focusedDay = DateTime.now();
-  DateTime selectedDay = DateTime.now();
+  late List<String> _habits;
+  final _notificationService = NotificationService();
+  final _controller = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadHabits();
+    _notificationService.init();
   }
 
-  void _loadHabits() {
-    habits = LocalStorage.getHabits() ?? [];
-    setState(() {});
+  Future<void> _loadHabits() async {
+    final habits = await LocalStorage.getHabits() ?? <String>[];
+    setState(() {
+      _habits = habits.cast<String>(); // cast Object -> List<String>
+    });
   }
 
-  void _saveHabits() {
-    LocalStorage.saveHabits(habits);
+  Future<void> _saveHabits() async {
+    await LocalStorage.saveHabits(_habits);
   }
 
-  void _toggleHabit(int index) {
-    habits[index]['completed'] = !(habits[index]['completed'] ?? false);
-    if (habits[index]['completed']) {
-      habits[index]['streak'] = (habits[index]['streak'] ?? 0) + 1;
-      NotificationService().scheduleDaily(
-        index,
-        'Habit Completed!',
-        'You completed ${habits[index]['title']} today!',
-        TimeOfDay.now(),
-      );
+  void _addHabit(String habit) {
+    final premiumService = context.read<PremiumService>();
+    if (_habits.length >= 5 && !premiumService.isPremium) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Upgrade to premium to add more habits')));
+      return;
     }
+
+    setState(() {
+      _habits.add(habit);
+    });
     _saveHabits();
-    setState(() {});
+    _notificationService.scheduleDaily(
+        _habits.indexOf(habit),
+        'Reminder',
+        'Time to complete your habit: $habit',
+        const Time(9, 0)); // Example time
   }
 
   @override
@@ -51,69 +59,49 @@ class _HabitsScreenState extends State<HabitsScreen> {
       appBar: AppBar(title: const Text('Habits')),
       body: Column(
         children: [
-          TableCalendar(
-            focusedDay: focusedDay,
-            firstDay: DateTime.utc(2020, 1, 1),
-            lastDay: DateTime.utc(2030, 12, 31),
-            selectedDayPredicate: (day) => isSameDay(selectedDay, day),
-            onDaySelected: (day, focusedDayNew) {
-              setState(() {
-                selectedDay = day;
-                focusedDay = focusedDayNew;
-              });
-            },
-          ),
           Expanded(
             child: ListView.builder(
-              itemCount: habits.length,
+              itemCount: _habits.length,
               itemBuilder: (context, index) {
-                final habit = habits[index];
+                final habit = _habits[index];
                 return ListTile(
-                  title: Text(habit['title']),
-                  subtitle: Text('Streak: ${habit['streak'] ?? 0}'),
-                  trailing: Checkbox(
-                    value: habit['completed'] ?? false,
-                    onChanged: (_) => _toggleHabit(index),
-                  ),
-                  onLongPress: () {
-                    setState(() {
-                      habits.removeAt(index);
+                  title: Text(habit),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () {
+                      setState(() {
+                        _habits.removeAt(index);
+                      });
                       _saveHabits();
-                    });
-                  },
+                    },
+                  ),
                 );
               },
             ),
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final titleController = TextEditingController();
-          final result = await showDialog<String>(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: const Text('New Habit'),
-              content: TextField(controller: titleController),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, null),
-                  child: const Text('Cancel'),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(hintText: 'Add habit'),
+                  ),
                 ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, titleController.text),
-                  child: const Text('Add'),
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: () {
+                    if (_controller.text.isNotEmpty) {
+                      _addHabit(_controller.text);
+                      _controller.clear();
+                    }
+                  },
                 ),
               ],
             ),
-          );
-          if (result != null && result.isNotEmpty) {
-            habits.add({'title': result, 'completed': false, 'streak': 0});
-            _saveHabits();
-            setState(() {});
-          }
-        },
-        child: const Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }
