@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 import '../services/local_storage.dart';
 
 class HabitsScreen extends StatefulWidget {
-  const HabitsScreen({Key? key}) : super(key: key);
-
   @override
   _HabitsScreenState createState() => _HabitsScreenState();
 }
 
 class _HabitsScreenState extends State<HabitsScreen> {
-  final LocalStorage _storage = LocalStorage();
-  List<String> _habits = <String>[];
+  List<String> habits = [];
 
   @override
   void initState() {
@@ -19,34 +16,37 @@ class _HabitsScreenState extends State<HabitsScreen> {
   }
 
   Future<void> _loadHabits() async {
-    final List<String> habits = await _storage.getHabits();
+    final stored = await LocalStorage.getHabits();
     setState(() {
-      _habits = habits;
+      // ✅ Fix: cast to List<String>
+      habits = List<String>.from(stored ?? []);
     });
   }
 
   Future<void> _addHabit(String habit) async {
     setState(() {
-      _habits.add(habit);
+      habits.add(habit);
     });
-    await _storage.saveHabits(_habits);
+    await LocalStorage.saveHabits(habits);
   }
 
   Future<void> _removeHabit(int index) async {
     setState(() {
-      _habits.removeAt(index);
+      habits.removeAt(index);
     });
-    await _storage.saveHabits(_habits);
+    await LocalStorage.saveHabits(habits);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Habits')),
+      appBar: AppBar(
+        title: const Text('Habits'),
+      ),
       body: ListView.builder(
-        itemCount: _habits.length,
-        itemBuilder: (BuildContext context, int index) {
-          final String habit = _habits[index];
+        itemCount: habits.length,
+        itemBuilder: (context, index) {
+          final habit = habits[index];
           return ListTile(
             title: Text(habit),
             trailing: IconButton(
@@ -57,34 +57,30 @@ class _HabitsScreenState extends State<HabitsScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
+        child: const Icon(Icons.add),
         onPressed: () async {
-          final String? newHabit = await _showAddHabitDialog();
-          if (newHabit != null && newHabit.isNotEmpty) {
-            await _addHabit(newHabit);
+          final controller = TextEditingController();
+          final result = await showDialog<String>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('New Habit'),
+              content: TextField(controller: controller),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, controller.text),
+                  child: const Text('Add'),
+                ),
+              ],
+            ),
+          );
+          if (result != null && result.isNotEmpty) {
+            _addHabit(result);
           }
         },
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  Future<String?> _showAddHabitDialog() {
-    final TextEditingController controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Add a Habit'),
-        content: TextField(controller: controller),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(context, null),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Add'),
-          ),
-        ],
       ),
     );
   }
