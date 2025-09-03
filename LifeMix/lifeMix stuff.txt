@@ -1,0 +1,3 @@
+CN=Samuel, OU=SBDeveloperStudios, O=LifeMix, L=London, ST=England, C=en
+keystore = Plat
+mykey = Mona
