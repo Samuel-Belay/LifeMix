@@ -7,7 +7,7 @@ class PremiumService extends ChangeNotifier {
   bool _isPremium = false;
   bool get isPremium => forcePremium || _isPremium;
 
-  /// For testing purposes: set to true to simulate premium user
+  /// For testing: flip this to bypass real checks
   bool forcePremium = false;
 
   late final Stream<List<PurchaseDetails>> _purchaseStream;
@@ -17,7 +17,7 @@ class PremiumService extends ChangeNotifier {
   PremiumService() {
     _purchaseStream = _iap.purchaseStream;
     _purchaseStream.listen(_onPurchaseUpdated, onDone: () {
-      // Optional: clean up
+      debugPrint('Purchase stream closed.');
     }, onError: (error) {
       debugPrint('Purchase stream error: $error');
     });
@@ -31,7 +31,7 @@ class PremiumService extends ChangeNotifier {
       return;
     }
 
-    const ids = <String>['premium_monthly', 'premium_yearly']; // Replace with your IDs
+    const ids = <String>['premium_monthly', 'premium_yearly'];
     final response = await _iap.queryProductDetails(ids.toSet());
     _products.addAll(response.productDetails);
 
@@ -39,13 +39,6 @@ class PremiumService extends ChangeNotifier {
   }
 
   Future<void> purchase(ProductDetails product) async {
-    if (forcePremium) {
-      _isPremium = true;
-      notifyListeners();
-      debugPrint('Premium granted via forcePremium toggle.');
-      return;
-    }
-
     final purchaseParam = PurchaseParam(productDetails: product);
     await _iap.buyNonConsumable(purchaseParam: purchaseParam);
   }
