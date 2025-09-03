@@ -1,17 +1,36 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalStorage {
-  static const String _habitsKey = 'habits';
+  static const String habitsKey = 'habits';
+  static const String themeKey = 'theme';
 
-  /// Save the list of habits persistently.
-  Future<void> saveHabits(List<String> habits) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_habitsKey, habits);
+  /// Save habits list (list of maps).
+  static Future<void> saveHabits(List<Map<String, dynamic>> habits) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(habitsKey, jsonEncode(habits));
   }
 
-  /// Retrieve the list of habits from persistent storage.
-  Future<List<String>> getHabits() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getStringList(_habitsKey) ?? <String>[];
+  /// Load habits list.
+  static Future<List<Map<String, dynamic>>?> getHabits() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(habitsKey);
+    if (data != null) {
+      final decoded = jsonDecode(data) as List;
+      return decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+    }
+    return null;
+  }
+
+  /// Save theme (light or dark).
+  static Future<void> saveTheme(bool isDark) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(themeKey, isDark);
+  }
+
+  /// Load theme, default = light mode.
+  static Future<bool> getTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(themeKey) ?? false; // false = light
   }
 }
