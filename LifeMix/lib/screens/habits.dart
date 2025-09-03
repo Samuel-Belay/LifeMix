@@ -1,6 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:table_calendar/table_calendar.dart';
 import '../services/local_storage.dart';
 import '../services/notification_service.dart';
+
+class Habit {
+  String name;
+  List<DateTime> completionDates;
+  int streak;
+
+  Habit({required this.name, this.completionDates = const [], this.streak = 0});
+
+  void markComplete() {
+    final today = DateTime.now();
+    if (completionDates.isEmpty ||
+        !isSameDay(completionDates.last, today.subtract(Duration(days: 1)))) {
+      streak = 1;
+    } else {
+      streak += 1;
+    }
+    completionDates.add(today);
+  }
+
+  bool isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'completionDates': completionDates.map((d) => d.toIso8601String()).toList(),
+        'streak': streak,
+      };
+
+  static Habit fromJson(Map<String, dynamic> json) {
+    return Habit(
+      name: json['name'],
+      completionDates: (json['completionDates'] as List<dynamic>)
+          .map((d) => DateTime.parse(d))
+          .toList(),
+      streak: json['streak'],
+    );
+  }
+}
 
 class HabitsScreen extends StatefulWidget {
   const HabitsScreen({super.key});
@@ -10,107 +49,77 @@ class HabitsScreen extends StatefulWidget {
 }
 
 class _HabitsScreenState extends State<HabitsScreen> {
-  final LocalStorage _storage = LocalStorage();
-  final NotificationService _notifications = NotificationService();
-
-  List<String> _habits = [];
+  List<Habit> _habits = [];
+  final NotificationService _notificationService = NotificationService();
 
   @override
   void initState() {
     super.initState();
-    _loadHabits();
-    _notifications.init(); // Initialize notification service
+    loadHabits();
+    _notificationService.init();
   }
 
-  Future<void> _loadHabits() async {
-    final stored = await _storage.getHabits();
+  Future<void> loadHabits() async {
+    final raw = await LocalStorage.getHabits();
     setState(() {
-      _habits = List<String>.from(stored ?? []);
+      _habits = raw.map((json) => Habit.fromJson(json)).toList();
     });
-    _scheduleAllHabitNotifications();
   }
 
-  Future<void> _addHabit(String habit) async {
-    _habits.add(habit);
-    await _storage.saveHabits(_habits);
-    _scheduleNotificationForHabit(habit);
-    setState(() {});
+  Future<void> saveHabits() async {
+    await LocalStorage.saveHabits(_habits.map((h) => h.toJson()).toList());
   }
 
-  Future<void> _removeHabit(String habit, int index) async {
-    _habits.removeAt(index);
-    await _storage.saveHabits(_habits);
-    await _notifications.cancelNotification(index); // Cancel by habit index
-    setState(() {});
-  }
-
-  void _scheduleAllHabitNotifications() {
-    for (int i = 0; i < _habits.length; i++) {
-      _scheduleNotificationForHabit(_habits[i], id: i);
-    }
-  }
-
-  void _scheduleNotificationForHabit(String habit, {int? id}) {
-    final notificationId = id ?? _habits.indexOf(habit);
-    _notifications.scheduleDaily(
-      notificationId,
-      'Habit Reminder',
-      'Don\'t forget to complete: $habit',
-      const Time(9, 0, 0), // Example: 9 AM daily reminder
-    );
+  void markHabitComplete(Habit habit) {
+    setState(() {
+      habit.markComplete();
+    });
+    saveHabits();
+    _notificationService.scheduleDaily(
+        habit.hashCode, 'Habit Reminder', 'Time for ${habit.name}', const Time(8, 0));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Habits')),
-      body: ListView.builder(
-        itemCount: _habits.length,
-        itemBuilder: (context, index) {
-          final habit = _habits[index];
-          return ListTile(
-            title: Text(habit),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () => _removeHabit(habit, index),
+      appBar: AppBar(title: const Text('Habits')),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: _habits.length,
+              itemBuilder: (context, index) {
+                final habit = _habits[index];
+                return ListTile(
+                  title: Text('${habit.name} (Streak: ${habit.streak})'),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.check),
+                    onPressed: () => markHabitComplete(habit),
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final newHabit = await _showAddHabitDialog();
-          if (newHabit != null && newHabit.isNotEmpty) {
-            _addHabit(newHabit);
-          }
-        },
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  Future<String?> _showAddHabitDialog() async {
-    String? habitName;
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Habit'),
-        content: TextField(
-          onChanged: (value) => habitName = value,
-          decoration: const InputDecoration(hintText: 'Enter habit name'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Add'),
+          TableCalendar(
+            firstDay: DateTime.utc(2020),
+            lastDay: DateTime.utc(2030),
+            focusedDay: DateTime.now(),
+            calendarBuilders: CalendarBuilders(
+              defaultBuilder: (context, day, _) {
+                final completed = _habits.any((h) =>
+                    h.completionDates.any((d) => h.isSameDay(d, day)));
+                return Container(
+                  decoration: BoxDecoration(
+                    color: completed ? Colors.green : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(child: Text('${day.day}')),
+                );
+              },
+            ),
           ),
         ],
       ),
     );
-    return habitName;
   }
 }
