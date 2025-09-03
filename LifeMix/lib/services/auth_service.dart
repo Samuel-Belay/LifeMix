@@ -1,18 +1,28 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
-class LocalStorage {
-  static const String _habitsKey = 'habits';
+class AuthService extends ChangeNotifier {
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-  /// Save the list of habits persistently.
-  Future<void> saveHabits(List<String> habits) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_habitsKey, habits);
+  GoogleSignInAccount? _user;
+  GoogleSignInAccount? get user => _user;
+
+  Future<void> signIn() async {
+    try {
+      _user = await _googleSignIn.signIn();
+      notifyListeners();
+    } catch (e) {
+      print("Sign-in error: $e");
+    }
   }
 
-  /// Retrieve the list of habits from persistent storage.
-  Future<List<String>> getHabits() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    // Returns an empty list if nothing is stored yet.
-    return prefs.getStringList(_habitsKey) ?? <String>[];
+  Future<void> signOut() async {
+    try {
+      await _googleSignIn.signOut();
+      _user = null;
+      notifyListeners();
+    } catch (e) {
+      print("Sign-out error: $e");
+    }
   }
 }
