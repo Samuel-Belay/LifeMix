@@ -1,49 +1,55 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tz;
 
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  static final FlutterLocalNotificationsPlugin _flutterLocal =
       FlutterLocalNotificationsPlugin();
 
-  static Future<void> init() async {
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    const InitializationSettings initializationSettings =
-        InitializationSettings(android: initializationSettingsAndroid);
-
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  Future<void> init() async {
     tz.initializeTimeZones();
+    const InitializationSettings settings = InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    );
+    await _flutterLocal.initialize(settings);
   }
 
-  static Future<void> scheduleDailyNotification(
-      int id, String title, String body, int hour, int minute) async {
-    final TZDateTime now = tz.TZDateTime.now(tz.local);
-    TZDateTime scheduledDate =
-        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
+  Future<void> scheduleDaily(
+    int id,
+    String title,
+    String body,
+    TimeOfDay timeOfDay,
+  ) async {
+    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+    tz.TZDateTime scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      timeOfDay.hour,
+      timeOfDay.minute,
+    );
+    if (scheduled.isBefore(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
     }
 
-    await flutterLocalNotificationsPlugin.zonedSchedule(
+    await _flutterLocal.zonedSchedule(
       id,
       title,
       body,
-      scheduledDate,
+      scheduled,
       const NotificationDetails(
         android: AndroidNotificationDetails(
-          'daily_notifications',
-          'Daily Notifications',
-          importance: Importance.max,
-          priority: Priority.high,
+          'habit_channel',
+          'Habit Reminders',
+          channelDescription: 'Daily habit reminder',
         ),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
   }
 }
