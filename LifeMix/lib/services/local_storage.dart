@@ -2,27 +2,38 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalStorage {
-  Future<void> saveData(String key, String value) async {
+  static const String _habitsKey = 'habits';
+  static const String _streaksKey = 'streaks';
+
+  /// Save habits
+  static Future<void> saveHabits(List<Map<String, dynamic>> habits) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString(key, value);
+    final String encoded = jsonEncode(habits);
+    await prefs.setString(_habitsKey, encoded);
   }
 
-  Future<String?> getData(String key) async {
+  /// Load habits
+  static Future<List<Map<String, dynamic>>> loadHabits() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString(key);
+    final String? encoded = prefs.getString(_habitsKey);
+    if (encoded == null) return [];
+    final List<dynamic> decoded = jsonDecode(encoded);
+    return decoded.cast<Map<String, dynamic>>();
   }
 
-  Future<Map<String, dynamic>> getStreaks() async {
+  /// Save streaks
+  static Future<void> saveStreaks(Map<String, int> streaks) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? data = prefs.getString('streaks');
-    if (data != null) {
-      return Map<String, dynamic>.from(jsonDecode(data));
-    }
-    return {};
+    final String encoded = jsonEncode(streaks);
+    await prefs.setString(_streaksKey, encoded);
   }
 
-  Future<void> saveStreaks(Map<String, dynamic> streaks) async {
+  /// Load streaks
+  static Future<Map<String, int>> loadStreaks() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('streaks', jsonEncode(streaks));
+    final String? encoded = prefs.getString(_streaksKey);
+    if (encoded == null) return {};
+    final Map<String, dynamic> decoded = jsonDecode(encoded);
+    return decoded.map((key, value) => MapEntry(key, value as int));
   }
 }
