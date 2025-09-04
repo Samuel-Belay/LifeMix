@@ -11,20 +11,37 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    ThemeNotifier themeNotifier = ThemeNotifier();
-
-    return ChangeNotifierProvider<ThemeNotifier>(
-      create: (_) => themeNotifier,
+    return ChangeNotifierProvider(
+      create: (_) => ThemeNotifier(),
       child: Consumer<ThemeNotifier>(
-        builder: (context, themeNotifier, child) {
+        builder: (context, themeNotifier, _) {
           return MaterialApp(
-            title: 'LifeMix App',
-            theme: themeNotifier.getTheme(),
-            home: const Scaffold(
-              body: Center(child: Text("LifeMix App Home")),
-            ),
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData.light(),
+            darkTheme: ThemeData.dark(),
+            themeMode: themeNotifier.themeMode,
+            home: const HomeScreen(),
           );
         },
+      ),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final themeNotifier = Provider.of<ThemeNotifier>(context);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("LifeMix")),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () => themeNotifier.toggleTheme(),
+          child: const Text("Toggle Theme"),
+        ),
       ),
     );
   }
