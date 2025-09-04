@@ -1,11 +1,11 @@
-// GENERATED FILE: Run `flutterfire configure` to generate
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
+// GENERATED FILE - DO NOT MODIFY
+import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 
 class DefaultFirebaseOptions {
-  static FirebaseOptions get currentPlatform {
-    throw UnsupportedError(
-      'DefaultFirebaseOptions have not been configured. Run `flutterfire configure`.'
-    );
-  }
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'YOUR_API_KEY',
+    appId: 'YOUR_APP_ID',
+    messagingSenderId: 'YOUR_SENDER_ID',
+    projectId: 'YOUR_PROJECT_ID',
+  );
 }
