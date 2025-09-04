@@ -1,31 +1,28 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalStorage {
-  static Future<void> saveData(String key, String value) async {
+  Future<void> saveData(String key, String value) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString(key, value);
   }
 
-  static Future<String?> getData(String key) async {
+  Future<String?> getData(String key) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString(key);
   }
 
-  // Save streaks
-  static Future<void> saveStreaks(Map<String, int> streaks) async {
+  Future<Map<String, dynamic>> getStreaks() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    for (final entry in streaks.entries) {
-      await prefs.setInt('streak_${entry.key}', entry.value);
+    final String? data = prefs.getString('streaks');
+    if (data != null) {
+      return Map<String, dynamic>.from(jsonDecode(data));
     }
+    return {};
   }
 
-  // Load streaks
-  static Future<Map<String, int>> getStreaks(List<String> habitIds) async {
+  Future<void> saveStreaks(Map<String, dynamic> streaks) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final Map<String, int> streaks = {};
-    for (final id in habitIds) {
-      streaks[id] = prefs.getInt('streak_$id') ?? 0;
-    }
-    return streaks;
+    await prefs.setString('streaks', jsonEncode(streaks));
   }
 }
