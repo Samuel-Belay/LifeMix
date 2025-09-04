@@ -1,47 +1,49 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin _flutterLocal =
+  static final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  Future<void> init() async {
+  static Future<void> init() async {
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
+
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
     tz.initializeTimeZones();
-    const settings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-    );
-    await _flutterLocal.initialize(settings);
   }
 
-  Future<void> scheduleDaily(
-      int id, String title, String body, TimeOfDay dailyTime) async {
-    final now = tz.TZDateTime.now(tz.local);
-    final scheduleDate = tz.TZDateTime(
-      tz.local,
-      now.year,
-      now.month,
-      now.day,
-      dailyTime.hour,
-      dailyTime.minute,
-    ).add(const Duration(days: 1));
+  static Future<void> scheduleDailyNotification(
+      int id, String title, String body, int hour, int minute) async {
+    final TZDateTime now = tz.TZDateTime.now(tz.local);
+    TZDateTime scheduledDate =
+        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
 
-    await _flutterLocal.zonedSchedule(
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
       id,
       title,
       body,
-      scheduleDate,
+      scheduledDate,
       const NotificationDetails(
         android: AndroidNotificationDetails(
-          'habit_channel',
-          'Habit Reminders',
-          channelDescription: 'Daily habit reminder',
+          'daily_notifications',
+          'Daily Notifications',
+          importance: Importance.max,
+          priority: Priority.high,
         ),
       ),
-      androidAllowWhileIdle: true,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 }
