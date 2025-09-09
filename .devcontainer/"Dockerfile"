@@ -1,0 +1,41 @@
+FROM ubuntu:22.04
+
+# Set a non-interactive mode for apt installations
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install necessary packages for Flutter and web development
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    unzip \
+    xz-utils \
+    zip \
+    wget \
+    openjdk-17-jdk \
+    libglu1-mesa \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Add a non-root user for development
+ARG USERNAME=developer
+RUN useradd -m $USERNAME && usermod -aG sudo $USERNAME
+USER $USERNAME
+WORKDIR /home/$USERNAME
+
+# Install Flutter SDK
+RUN git clone https://github.com/flutter/flutter.git -b stable
+ENV PATH="/home/$USERNAME/flutter/bin:${PATH}"
+
+# Pre-cache Flutter SDK to save time on subsequent runs
+RUN flutter precache
+
+# Run flutter doctor to download all necessary dependencies
+RUN flutter doctor
+
+# Set permissions for the user
+RUN sudo chown -R $USERNAME:$USERNAME /home/$USERNAME/flutter
+
+# Expose the port for the web server
+EXPOSE 3000
+
+# Set a default command to be run when the container starts (optional)
+CMD ["/bin/bash"]
