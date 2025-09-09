@@ -1,0 +1,11 @@
+{
+  "name": "Flutter Codespace",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "forwardPorts": [3000],
+  "extensions": [
+    "dart-code.flutter",
+    "dart-code.dart-code"
+  ]
+}
